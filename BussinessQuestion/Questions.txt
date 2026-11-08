@@ -1,7 +1,11 @@
-You are a data analyst for AutoCare Hospital; your stakeholders would like to know the following from their data:
-•	Total discharges 
-•	Average daily discharge rate 
-•	Average Length of Stay,
-•	Distribution of discharges by Age group 
-•	Distribution of discharges by gender 
-•	Distribution of discharges by day of the week
+Total discharges 
+Average daily discharge rate 
+Average Length of Stay,
+Distribution of discharges by Age group 
+Distribution of discharges by gender 
+Distribution of discharges by day of the week
+How many hospital admissions occur each month?
+Hospital mortality rate by admission type. Does emergency admission have a higher expiry rate than OPD admission?
+Which admission type has a higher average hospital stay 
+What is the gender distribution of hospital admissions?. How many male and female patients were admitted to the hospital?
+How common are diabetes and hypertension among admitted patients?. How many hospital admissions involve patients with diabetes (DM) and hypertension (HTN)?
