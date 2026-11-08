@@ -30,12 +30,12 @@ SELECT
     SUM(CASE WHEN OUTCOME = 'DISCHARGE' THEN 1.0 ELSE 0.0 END), 0) AS INT) AS AVG_LENGTH_OF_STAY 
 FROM vw_AdmissionData
 
-/*Q4 DISTRIBUTAION OF DISCHARGES BY EACH GROUP*/
--- <16 PAEDRIATICS
+/*Q4 DISTRIBUTION OF DISCHARGES BY EACH GROUP*/
+-- <16 PEDIATRICS
 -- 16<65 ADULTS
--- >=65 SENIOR CITIZEN
+-- >=65 SENIOR CITIZENS
 SELECT
-     CASE WHEN AGE < 16 THEN 'PAEDRIATICS'
+     CASE WHEN AGE < 16 THEN 'PAEDIATRICS'
           WHEN AGE < 65 THEN 'ADULTS'
           WHEN AGE >= 65 THEN 'SENIOR CITIZEN'
           ELSE 'UNKNOWN'
@@ -43,9 +43,9 @@ SELECT
 FROM vw_AdmissionData
 WHERE OUTCOME = 'DISCHARGE'
 GROUP BY 
-     CASE WHEN AGE < 16 THEN 'PAEDRIATICS'
+     CASE WHEN AGE < 16 THEN 'PAEDIATRICS'
           WHEN AGE < 65 THEN 'ADULTS'
-          WHEN AGE >= 65 THEN 'SENIOR CITIZEN'
+          WHEN AGE >= 65 THEN 'SENIOR CITIZENS'
           ELSE 'UNKNOWN'
     END
 ORDER BY MAX(AGE);
@@ -69,4 +69,87 @@ FROM vw_AdmissionData
 WHERE OUTCOME = 'DISCHARGE' AND D_O_D IS NOT NULL
 GROUP BY FORMAT(D_O_D, 'dddd')
 ORDER BY 2 DESC
+
+/* Let's solve some real-life business questions*/
+/* How many hospital admissions occur each month?*/
+
+SELECT month_year,
+COUNT(*) AS TOTAL_ADMISSION
+FROM vw_AdmissionData
+WHERE month_year IS NOT NULL 
+GROUP BY month_year
+ORDER BY TRY_CONVERT(DATE, '01-' +  [month_year])
+
+/*Hospital mortality rate by admission type*/
+/*Does emergency admission have a higher expiry rate than OPD admission?*/
+
+SELECT [TYPE_OF_ADMISSION_EMERGENCY_OPD] AS ADMISSION_TYPE,
+COUNT(*) AS TOTAL_ADMISSION,
+SUM(CASE WHEN UPPER(TRIM(OUTCOME)) = 'EXPIRY'
+THEN 1 ELSE 0 END) AS TOTAL_EXPIRY,
+CAST(
+SUM(CASE WHEN UPPER(TRIM(OUTCOME)) = 'EXPIRY'
+THEN 1 ELSE 0 END) *100.0/ COUNT(*) AS DECIMAL(10,2) ) AS EXPIRY_RATE_PERCENTAGE
+FROM vw_AdmissionData
+WHERE  [TYPE_OF_ADMISSION_EMERGENCY_OPD] IN ('E' , 'O')
+GROUP BY  [TYPE_OF_ADMISSION_EMERGENCY_OPD];
+
+/* Which admission type has a higher average hospital stay */
+
+SELECT [TYPE_OF_ADMISSION_EMERGENCY_OPD] AS ADMISSION_TYPE,
+COUNT(*) AS TOTAL_VALID_ADMISSION,
+AVG(CAST([DURATION_OF_STAY] AS decimal(10, 2)) ) AS AVG_LENGTH_OF_STAY,
+MIN([DURATION_OF_STAY]) AS MIN_STAY,
+MAX([DURATION_OF_STAY]) AS MAX_STAY
+FROM vw_AdmissionData 
+WHERE [TYPE_OF_ADMISSION_EMERGENCY_OPD] IN ('E', 'O')
+AND [DURATION_OF_STAY] > 0
+GROUP BY [TYPE_OF_ADMISSION_EMERGENCY_OPD];
+
+/*Additional validation queries
+Before trusting the results.
+Check 1: Duplicate admission identifiers*/
+SELECT SNO, COUNT(*) AS RECORD
+FROM vw_AdmissionData
+GROUP BY SNO
+HAVING COUNT(*) > 1;
+
+/*Invalid length of stay*/
+SELECT * FROM vw_AdmissionData
+WHERE DURATION_OF_STAY <= 0
+OR [duration_of_intensive_unit_stay] < 0
+OR [duration_of_intensive_unit_stay] > [DURATION_OF_STAY];
+
+/*Repeated patient records*/
+--This identifies patients with multiple admission records. It does not establish that those records are duplicates.
+SELECT MRD_No, COUNT(*) AS ADMISSION_COUNT
+FROM vw_AdmissionData
+GROUP BY MRD_No
+HAVING COUNT(*) > 1
+ORDER BY ADMISSION_COUNT DESC
+
+/*What is the gender distribution of hospital admissions?*/
+--How many male and female patients were admitted to the hospital?
+SELECT GENDER, COUNT(*) AS TOTAL_ADMISSION,
+CAST(COUNT(*) *100.0/ SUM(COUNT(*)) OVER() AS DECIMAL(10,2)
+) AS GENDER_PERCENTAGE
+FROM vw_AdmissionData
+WHERE GENDER IN ('M' , 'F')
+GROUP BY GENDER
+ORDER BY TOTAL_ADMISSION DESC;
+
+/*How common are diabetes and hypertension among admitted patients?*/
+--How many hospital admissions involve patients with diabetes (DM) and hypertension (HTN)?
+
+SELECT COUNT(*) AS TOTAL_ADMISSIONS,
+SUM(CASE WHEN DM = 1 THEN 1 ELSE 0 END) AS DIABETES_ADMISSION,
+SUM(CASE WHEN HTN = 1 THEN 1 ELSE 0 END) AS HYPERTENSION_ADMISSION,
+CAST(
+  SUM(CASE WHEN DM = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(10, 2) )AS DIABETES_PERCENTAGE,
+  CAST(
+  SUM(CASE WHEN HTN = 1 THEN 1 ELSE 0 END)*100.0/ COUNT(*) AS DECIMAL(10,2) )AS HYPERTENSION_PERCENTAGE
+
+FROM vw_AdmissionData
+WHERE DM IN (0,1)
+AND HTN IN (0,1);
   
